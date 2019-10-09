@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import com.demo.cl.mapbox.api.MapApi
 import com.demo.cl.mapbox.db.Pin
 import com.demo.cl.mapbox.db.PinsDao
+import javax.inject.Inject
 
 interface IMapRepository {
     suspend fun getPinsFromRemote(): List<Pin>
@@ -12,7 +13,7 @@ interface IMapRepository {
     suspend fun addPinToLocal(pin: Pin)
 }
 
-class MapRepository(val mapApi: MapApi, val pinsDao: PinsDao) : IMapRepository {
+class MapRepository @Inject constructor(val mapApi: MapApi, val pinsDao: PinsDao) : IMapRepository {
 
     override suspend fun getPinsFromRemote():List<Pin>{
        return mapApi.getPins()

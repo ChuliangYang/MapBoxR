@@ -4,8 +4,8 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.demo.cl.mapbox.db.Pin
@@ -14,7 +14,6 @@ import com.demo.cl.mapbox.db.toLatLng
 import com.demo.cl.mapbox.db.toMarkerOptions
 import com.demo.cl.mapbox.ui.adapter.PinAdapter
 import com.demo.cl.mapbox.ui.viewmodel.MapViewModel
-import com.demo.cl.mapbox.ui.viewmodel.ViewModelFactory
 import com.demo.cl.mapbox.utils.*
 import com.mapbox.android.core.permissions.PermissionsListener
 import com.mapbox.android.core.permissions.PermissionsManager
@@ -31,22 +30,34 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
+class MapsActivity : BaseDaggerActivity(), CoroutineScope by MainScope(),
     OnMapReadyCallback, PermissionsListener {
-
+    //For screen rotation restore
     private val KEY_TYPE = "type"
+    private val KEY_CAMERA = "camera"
+    private val KEY_PERMISSION_DENIED = "permission_denied"
+
+    @Inject
+    lateinit var pinsChannel: Channel<List<Pin>>
+
+    @Inject
+    lateinit var permissionsManager: PermissionsManager
+
+    @Inject
+    lateinit var viewModelFactory: ViewModelProvider.Factory
+
+    private var lastCameraPosition: CameraPosition? = null
+
+    private var permissionDenied=false
 
     private lateinit var mMap: MapboxMap
 
-    private val pinsChannel = Channel<List<Pin>>(1)
-
-
     private var mLastType: String? = null
 
-    private var permissionsManager: PermissionsManager? = null
-
     private var viewModel: MapViewModel? = null
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,11 +66,11 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
             MAPBOX_KEY
         )
         setContentView(R.layout.activity_maps)
-        viewModel = ViewModelProviders.of(this, ViewModelFactory.getInstance(application))
+        viewModel = ViewModelProviders.of(this, viewModelFactory)
             .get(MapViewModel::class.java)
 
         // Create supportMapFragment
-        var mapFragment: SupportMapFragment? =null
+        var mapFragment: SupportMapFragment? = null
         if (savedInstanceState == null) {
             // Create map fragment
             mapFragment = SupportMapFragment.newInstance(
@@ -77,8 +88,12 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
 
             submitFragment(R.id.container, mapFragment, MAPBOX_FRAGMENT_TAG)
         } else {
-            mLastType = savedInstanceState.getString(KEY_TYPE, null)
+            savedInstanceState.run {
+                mLastType=getString(KEY_TYPE, null)
+                permissionDenied=getBoolean(KEY_PERMISSION_DENIED,false)
+                lastCameraPosition=getParcelable(KEY_CAMERA)
 
+            }
             mapFragment =
                 supportFragmentManager.findFragmentByTag(MAPBOX_FRAGMENT_TAG) as? SupportMapFragment
         }
@@ -88,7 +103,7 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
 
         fb_find_my_location.setOnClickListener {
             if (::mMap.isInitialized && mMap.style != null) {
-                enableLocationComponent(true)
+                enableLocationComponent(true,false)
             }
         }
 
@@ -127,7 +142,7 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
 
     override fun onStart() {
         super.onStart()
-        viewModel?.getPinsFromServer()
+        viewModel?.getPinsFromServer(false)
     }
 
 
@@ -144,7 +159,7 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
     private fun getInitialLoadCallBack(): (Style) -> Unit {
         return {
             launch {
-                enableLocationComponent(false)
+                enableLocationComponent(false,permissionDenied)
                 updateMarkers(pinsChannel.receive())
                 pinsChannel.close()
             }
@@ -164,7 +179,10 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
                     }
                 }
             }
-            if (pins.isNotEmpty()) {
+            if (lastCameraPosition != null) {
+                mMap.moveCamera(CameraUpdateFactory.newCameraPosition(lastCameraPosition!!))
+                lastCameraPosition = null
+            } else if (pins.isNotEmpty()) {
                 mMap.animateCamera(
                     CameraUpdateFactory.newLatLngZoom(
                         bound.build().center,
@@ -172,6 +190,7 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
                     )
                 )
             }
+
         }
     }
 
@@ -212,12 +231,14 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
                 mMap.style?.let {
                     putString(KEY_TYPE, it.json)
                 }
+                putParcelable(KEY_CAMERA,mMap.cameraPosition)
+                putBoolean(KEY_PERMISSION_DENIED,permissionDenied)
             }
         }
     }
 
 
-    private fun enableLocationComponent(moveToLocation: Boolean) {
+    private fun enableLocationComponent(moveToLocation: Boolean, disallowPermissionRequest:Boolean) {
         // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
             if (::mMap.isInitialized) {
@@ -237,9 +258,8 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
                     locationComponent.cameraMode = CameraMode.TRACKING
                 }
             }
-        } else {
-            permissionsManager = PermissionsManager(this)
-            permissionsManager?.requestLocationPermissions(this)
+        } else if(!disallowPermissionRequest){
+            permissionsManager.requestLocationPermissions(this)
         }
 
     }
@@ -250,7 +270,7 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        permissionsManager?.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     override fun onExplanationNeeded(permissionsToExplain: MutableList<String>?) {
@@ -260,10 +280,12 @@ class MapsActivity : AppCompatActivity(), CoroutineScope by MainScope(),
 
     override fun onPermissionResult(granted: Boolean) {
         if (granted) {
+            permissionDenied=false
             mMap.getStyle {
-                enableLocationComponent(true)
+                enableLocationComponent(true,false)
             }
         } else {
+            permissionDenied=true
             Toast.makeText(this, R.string.user_location_permission_not_granted, Toast.LENGTH_LONG)
                 .show()
         }

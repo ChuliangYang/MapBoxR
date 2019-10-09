@@ -5,9 +5,6 @@ import androidx.room.PrimaryKey
 import com.mapbox.mapboxsdk.annotations.MarkerOptions
 import com.mapbox.mapboxsdk.geometry.LatLng
 
-//import com.google.android.gms.maps.model.LatLng
-//import com.google.android.gms.maps.model.MarkerOptions
-
 @Entity(tableName = "Pins")
 data class Pin(
     val description: String?,

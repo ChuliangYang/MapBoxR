@@ -10,20 +10,4 @@ interface MapApi{
     suspend fun getPins():List<Pin>
 }
 
-
-
-class RetrofitClient{
-    companion object{
-        @Volatile private var INSTANCE:Retrofit?=null
-        fun getInstance():Retrofit{
-            if(INSTANCE ==null){
-                synchronized(this){
-                    if(INSTANCE ==null){
-                        INSTANCE=Retrofit.Builder().baseUrl("https://annetog.gotenna.com/development/").addConverterFactory(GsonConverterFactory.create()).build()
-                    }
-                }
-            }
-            return INSTANCE!!
-        }
-    }
-}
+const val BASE_URL="https://annetog.gotenna.com/development/"

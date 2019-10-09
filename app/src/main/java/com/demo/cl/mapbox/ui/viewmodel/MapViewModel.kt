@@ -6,15 +6,18 @@ import com.demo.cl.mapbox.repo.IMapRepository
 import com.demo.cl.mapbox.repo.MapRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MapViewModel(private val mapRepository: IMapRepository):ViewModel() {
+class MapViewModel @Inject constructor(private val mapRepository: IMapRepository):ViewModel() {
     val localPins=MediatorLiveData<List<Pin>>()
     private var oldPins:LiveData<List<Pin>>?=null
 
-    fun getPinsFromServer(){
+    fun getPinsFromServer(forcedFetch:Boolean){
         viewModelScope.launch(Dispatchers.Main) {
-                mapRepository.apply {
-                    addPinsToLocal(getPinsFromRemote())
+                if(forcedFetch||oldPins==null){
+                    mapRepository.apply {
+                        addPinsToLocal(getPinsFromRemote())
+                    }
                 }
                 if(oldPins==null){
                     oldPins= mapRepository.getPinsFromLocal().also {pins->
