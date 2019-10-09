@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+android:layout_width="match_parent"
+android:layout_height="match_parent"
+    >
+
+    <FrameLayout
+        android:id="@+id/container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="@dimen/bottom_panel_height"
+        >
+    </FrameLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fb_find_my_location"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="@dimen/fab_end"
+        android:layout_marginBottom="@dimen/fab_bottom"
+        android:backgroundTint="@android:color/white"
+        app:srcCompat="@drawable/ic_location"
+        app:fabSize="mini"
+        />
+
+
+    <com.demo.cl.mapbox.view.BottomFly
+        android:id="@+id/bottom_fly"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="10dp"
+        app:panel_shrink_height="@dimen/bottom_panel_height"
+        >
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/bottom_panel_height"
+                android:background="@android:color/white"
+                android:gravity="center_vertical"
+                android:paddingLeft="8dp"
+                android:text="@string/pin_list"
+                android:textColor="#03A9F4"
+                android:textSize="18sp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_pins"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/background_weak"
+            />
+        </LinearLayout>
+    </com.demo.cl.mapbox.view.BottomFly>
+
+</FrameLayout>

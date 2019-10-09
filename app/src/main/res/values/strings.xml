@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">MapBox</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="pin_list">Pin List</string>
+    <string name="menu_normal">normal</string>
+    <string name="menu_satellite">satellite</string>
+    <string name="user_location_permission_explanation">We need this permission to display current location</string>
+    <string name="user_location_permission_not_granted">Do not have permission</string>
+</resources>
