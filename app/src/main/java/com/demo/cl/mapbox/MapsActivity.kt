@@ -136,8 +136,6 @@ class MapsActivity : BaseDaggerActivity(), CoroutineScope by MainScope(),
                 updateMarkers(it)
             }
         })
-
-
     }
 
     override fun onStart() {
